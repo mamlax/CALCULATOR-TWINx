@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<!-- saved from url=(0048)file:///C:/Users/91945/Documents/calculator.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TWINx BROTHERS - Equation Solver</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #FF7F50, #6A5ACD);
+            color: #fff;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+            padding: 30px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            font-size: 36px;
+            color: #fff;
+            font-family: 'Comic Sans MS', sans-serif;
+        }
+        .input-container {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 20px;
+        }
+        label {
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+        input[type="text"] {
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: none;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 12px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .result {
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .camera-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        video {
+            max-width: 100%;
+            border-radius: 8px;
+        }
+        .camera-button {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .camera-button:hover {
+            background-color: #0056b3;
+        }
+        .identifier {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>TWINx BROTHERS</h1>
+    <!-- Equation input field -->
+    <div class="input-container">
+        <label for="equation">Enter your equation:</label>
+        <input type="text" id="equation" placeholder="e.g. 2x + 3 = 0">
+    </div>
+    <button onclick="solveEquation()">Solve</button>
+
+    <div class="result" id="result">Solution: x = 10</div>
+
+    <!-- Odd/Even and Prime Identifier -->
+    <div id="identifier" class="identifier">The solution is: <strong>Even</strong> and <strong>Not Prime</strong></div>
+
+    <!-- Camera Section -->
+    <div class="camera-container">
+        <video id="video" width="320" height="240" autoplay=""></video>
+    </div>
+    <button class="camera-button" onclick="takePicture()">Capture Equation</button>
+
+    <!-- Display captured image -->
+    <div id="imageContainer" style="text-align: center; margin-top: 20px;">
+        <canvas id="canvas" width="320" height="240" style="display:none;"></canvas>
+        <img id="capturedImage" style="max-width: 100%; display: none;">
+    </div>
+</div>
+
+<!-- Include Tesseract.js for OCR -->
+<script src="./TWINx BROTHERS - Equation Solver_files/tesseract.min.js.download"></script>
+
+<script>
+    // Camera access and image capture
+    let videoElement = document.getElementById('video');
+    let canvasElement = document.getElementById('canvas');
+    let capturedImage = document.getElementById('capturedImage');
+    let resultDiv = document.getElementById('result');
+    let identifierDiv = document.getElementById('identifier');
+    
+    // Access the user's camera
+    navigator.mediaDevices.getUserMedia({ video: true })
+        .then(function (stream) {
+            videoElement.srcObject = stream;
+        })
+        .catch(function (err) {
+            console.log("Camera access error: " + err);
+        });
+
+    // Capture picture from the video stream
+    function takePicture() {
+        canvasElement.getContext('2d').drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+        let dataURL = canvasElement.toDataURL('image/png');
+        capturedImage.src = dataURL;
+        capturedImage.style.display = 'block';
+
+        // Run OCR on the captured image
+        Tesseract.recognize(
+            dataURL,
+            'eng',
+            {
+                logger: (m) => console.log(m),
+            }
+        ).then(({ data: { text } }) => {
+            document.getElementById('equation').value = text.trim();
+            solveEquation(); // Try solving the equation extracted from the image
+        }).catch(err => {
+            resultDiv.innerHTML = "OCR failed, please try again!";
+        });
+    }
+
+    // Solve the equation entered by the user or captured by the camera
+    function solveEquation() {
+        let equation = document.getElementById('equation').value.trim();
+
+        // Remove spaces for easier parsing
+        equation = equation.replace(/\s+/g, '');
+
+        // Basic check for linear equations
+        const regExp = /^([+-]?\d*)x([+-]?\d+)?=([+-]?\d+)$/;
+
+        // If the equation matches the linear form
+        if (regExp.test(equation)) {
+            const matches = equation.match(regExp);
+            let a = matches[1] === '' || matches[1] === '+' ? 1 : matches[1] === '-' ? -1 : parseFloat(matches[1]);
+            let b = matches[2] ? parseFloat(matches[2]) : 0;
+            let c = parseFloat(matches[3]);
+
+            // Solve ax + b = c -> x = (c - b) / a
+            let solution = (c - b) / a;
+
+            // Display the result
+            resultDiv.innerHTML = `Solution: x = ${solution}`;
+            identifyNumber(solution); // Check if the solution is odd/even or prime
+        } else {
+            // Invalid equation format
+            resultDiv.innerHTML = 'Invalid equation format. Please enter a linear equation like "2x + 3 = 0".';
+        }
+    }
+
+    // Identify whether a number is odd, even, or prime
+    function identifyNumber(num) {
+        let oddOrEven = num % 2 === 0 ? 'Even' : 'Odd';
+        let primeStatus = isPrime(num) ? 'Prime' : 'Not Prime';
+
+        identifierDiv.innerHTML = `The solution is: <strong>${oddOrEven}</strong> and <strong>${primeStatus}</strong>`;
+    }
+
+    // Check if a number is prime
+    function isPrime(num) {
+        if (num <= 1) return false;
+        for (let i = 2; i <= Math.sqrt(num); i++) {
+            if (num % i === 0) return false;
+        }
+        return true;
+    }
+</script>
+
+
+
+</body></html>
